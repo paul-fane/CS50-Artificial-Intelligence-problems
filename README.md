@@ -13,6 +13,7 @@ This course explores the concepts and algorithms at the foundation of modern art
     - [Knights](#knights)
 - [Week2](#week2)
     - [PageRank](#pagerank)
+    - [Heredity](#heredity)
 
 
 ## **Week0**
@@ -47,3 +48,8 @@ Write a program to solve logic puzzles.
 ### **PageRank**
 Write an AI to rank web pages by importance.
 #### Project Specification: <[URL HERE](https://cs50.harvard.edu/ai/2020/projects/2/pagerank/)>
+
+
+### **Heredity**
+Write an AI to assess the likelihood that a person will have a particular genetic trait.
+#### Project Specification: <[URL HERE](https://cs50.harvard.edu/ai/2020/projects/2/heredity/)>

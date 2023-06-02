@@ -44,6 +44,12 @@ def main():
         sys.exit("Usage: python heredity.py data.csv")
     people = load_data(sys.argv[1])
 
+    # The list of people example
+    #{'Harry': {'name': 'Harry', 'mother':'Lily','father':'James',  'trait': None}, 
+    # 'James': {'name': 'James', 'mother': None, 'father': None,    'trait': True}, 
+    # 'Lily':  {'name': 'Lily',  'mother': None, 'father': None,    'trait': False}
+    # }
+
     # Keep track of gene and trait probabilities for each person
     probabilities = {
         person: {
@@ -60,10 +66,21 @@ def main():
         for person in people
     }
 
+    # Probabilities dictionary
+    #{'Harry': {'gene': {2: 0, 1: 0, 0: 0}, 'trait': {True: 0, False: 0}}, 
+    # 'James': {'gene': {2: 0, 1: 0, 0: 0}, 'trait': {True: 0, False: 0}}, 
+    #  'Lily': {'gene': {2: 0, 1: 0, 0: 0}, 'trait': {True: 0, False: 0}}}
+
+
     # Loop over all sets of people who might have the trait
     names = set(people)
-    for have_trait in powerset(names):
+    # names = the set of people name {'Harry', 'James', 'Lily'}
 
+    # print(powerset(names))
+    # [set(), {'Harry'}, {'James'}, {'Lily'}, {'Harry', 'James'}, {'Harry', 'Lily'}, {'Lily', 'James'}, {'Harry', 'James', 'Lily'}]
+
+    for have_trait in powerset(names):
+        
         # Check if current set of people violates known information
         fails_evidence = any(
             (people[person]["trait"] is not None and
@@ -72,10 +89,14 @@ def main():
         )
         if fails_evidence:
             continue
-
+        
         # Loop over all sets of people who might have the gene
         for one_gene in powerset(names):
+            # [{'Harry'}, {'James'}, {'Lily'}, {'Harry', 'James'}, {'Harry', 'Lily'}, {'Lily', 'James'}, {'Harry', 'James', 'Lily'}]
+            # one_gene = Herry
             for two_genes in powerset(names - one_gene):
+                # [ {'James'}, {'Lily'}, {'Harry', 'James'}, {'Harry', 'Lily'}, {'Lily', 'James'}, {'Harry', 'James', 'Lily'}]
+                # two_genes = James => Lily =>'Harry', 'James' =>'Harry', 'Lily' =>'Lily', 'James'=>'Harry', 'James', 'Lily
 
                 # Update probabilities with new joint probability
                 p = joint_probability(people, one_gene, two_genes, have_trait)
@@ -139,7 +160,70 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    raise NotImplementedError
+    
+    joint_probability = 1
+    # {'Harry', 'James', 'Lily'}
+    for person in people:
+
+        if person in one_gene:
+            copiesOfGenes = 1
+        elif person in two_genes:
+            copiesOfGenes = 2
+        else:
+            copiesOfGenes = 0
+
+        if person in have_trait:
+            hasTrait = True
+        else:
+            hasTrait = False
+
+        mother = people[person]['mother']
+        father = people[person]['father']
+
+        # If the person does not have one or both parents we need to take the probabilities from the PROBS dictionary
+        if mother == None or father == None:
+            joint_probability *= PROBS['gene'][copiesOfGenes] * PROBS["trait"][copiesOfGenes][hasTrait]
+
+        # Else for any child, the probability of them having a certain number of genes is conditional on what genes their parents have.
+        else:
+            # Calculate the probability of mother and father to pass the gene based on how many genes they have
+            if mother in one_gene:
+                # If the mother has 1 gene, there is a 50% chance of passing on the gene
+                probOfMother = 0.5
+            elif mother in two_genes:
+                # If the mother has 2 genes, she will not pass the gene only if the gene mutate => (1 - 0.01)
+                probOfMother = 1 - PROBS['mutation']
+            else:
+                # If the mother has 0 genes, she can pass the gene only if the gene mutate (0.01)
+                probOfMother = PROBS['mutation']
+
+            if father in one_gene:
+                probOfFather = 0.5
+            elif father in two_genes:
+                probOfFather = 1 - PROBS['mutation']
+            else:
+                probOfFather = PROBS['mutation']
+                
+
+            if copiesOfGenes == 1:
+                # What’s the probability that the person has 1 copy of the gene? 
+                # There are two ways this can happen.
+                # Either (he gets the gene from his mother and not his father), or (he gets the gene from his father and not his mother)
+                joint_probability *= probOfMother * (1-probOfFather) + probOfFather * (1-probOfMother)
+            elif copiesOfGenes == 2:
+                # 2 copy of the gene => one from his mother and one from his father
+                joint_probability *= probOfMother * probOfFather
+            else:
+                # Both parents do not transmit the gene
+                joint_probability *= (1-probOfMother) * (1-probOfFather)
+
+            # Find the probability that the parson has a specific treat
+            joint_probability *= PROBS["trait"][copiesOfGenes][hasTrait]
+            
+
+    return joint_probability
+
+        
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
@@ -149,7 +233,22 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
+    for person in probabilities:
+
+        if person in one_gene:
+            copiesOfGenes = 1
+        elif person in two_genes:
+            copiesOfGenes = 2
+        else:
+            copiesOfGenes = 0
+
+        if person in have_trait:
+            hasTrait = True
+        else:
+            hasTrait = False
+
+        probabilities[person]['gene'][copiesOfGenes] += p
+        probabilities[person]['trait'][hasTrait] += p
 
 
 def normalize(probabilities):
@@ -157,7 +256,14 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    raise NotImplementedError
+    # 1/sum = x/trait
+    # x=1/sum * trait
+
+    for person in probabilities:
+        for field in probabilities[person]:
+            sumValue = sum(probabilities[person][field].values())
+            for value in probabilities[person][field]:
+                probabilities[person][field][value] *= 1/sumValue
 
 
 if __name__ == "__main__":
